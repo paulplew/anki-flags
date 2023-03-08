@@ -8,38 +8,88 @@ import random
 
 API_ENDPOINT = 'https://countryflagsapi.com/svg/'
 IBAN_ENDPOINT = 'https://www.iban.com/country-codes'
+
+class FlagNote(genanki.Note):
+  @property
+  def guid(self):
+    return genanki.guid_for(self.fields[0])
+
+class ISONote(genanki.Note):
+    @property
+    def guid(self):
+        return genanki.guid_for(self.fields[0], self.fields[1])
+
+STYLE = """
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+"""
 FLAG_MODEL = genanki.Model(
     1121025992,
     'Flag Model',
     fields=[
         {'name': 'Country'},
-        {'name': 'Alpha-2'},
-        {'name': 'Alpha-3'},
-        {'name': 'Numeric'},
-        {'name': 'Image'},
+        {'name': 'Image_lg'},
+        {'name': 'Image_sm'},
     ],
     templates=[
         {
-            'name': 'Country Name',
-            'qfmt': '<img src={{Image}} />',
+            'name': 'Flag to Country Name',
+            'qfmt': '<div class="center">{{Image_lg}}</div>',
             'afmt': '{{FrontSide}}<hr id="answer"><p>Name: {{Country}}</p>'
         },
         {
-            'name': 'Alpha-2 Code',
-            'qfmt': '<img src={{Image}} />',
-            'afmt': '{{FrontSide}}<hr id="answer"><p>Alpha-2 Code: {{Alpha-2}}</p>'
+            'name': 'Country Name To Flag',
+            'qfmt': '<div class="center">The flag for {{Country}}</div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><div class="center">{{Image_sm}}</div>'
+        },
+    ],
+    css=STYLE)
+
+ISO_MODEL = genanki.Model(
+1228079407,
+    'ISO3166 Model',
+    fields=[
+        {'name': 'Country'},
+        {'name': 'Alpha-2'},
+        {'name': 'Alpha-3'},
+        {'name': 'Numeric'},
+    ],
+    templates=[
+        {
+            'name': 'Country Name to Alpha 2',
+            'qfmt': '<div class=center><p>What is the Alpha-2 code for {{Country}}?</p></div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><p>Alpha-2: {{Alpha-2}}</p>'
         },
         {
-            'name': 'Alpha-3 Code',
-            'qfmt': '<img src={{Image}} />',
-            'afmt': '{{FrontSide}}<hr id="answer"><p>Alpha-3 Code: {{Alpha-3}}</p>'
+            'name': 'Country Name to Alpha 3',
+            'qfmt': '<div class=center><p>What is the Alpha-3 code for {{Country}}?</p></div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><p>Alpha-3: {{Alpha-3}}</p>'
         },
         {
-            'name': 'ISO Numeric Code',
-            'qfmt': '<img src={{Image}} />',
-            'afmt': '{{FrontSide}}<hr id="answer"><p>ISO Numeric Code: {{Numeric}}</p>'
+            'name': 'Country Name to Numeric',
+            'qfmt': '<div class=center><p>What is the Numeric code for {{Country}}?</p></div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><p>{{Numeric}}</p>'
         },
-    ])
+        {
+            'name': 'Alpha 2 to Country Name',
+            'qfmt': '<div class=center><p>What country does the alpha-2 code <b>{{Alpha-2}}</b> represent?</p></div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><p>Country: {{Country}}</p>'
+        },
+        {
+            'name': 'Alpha 3 to Country Name',
+            'qfmt': '<div class=center><p>What country does the alpha-3 code <b>{{Alpha-3}}</b> represent?</p></div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><p>{{Country}}</p>'
+        },
+        {
+            'name': 'Numeric to Country Name',
+            'qfmt': '<div class=center><p>What country does the numeric code <b>{{Numeric}}</b> represent?</p></div>',
+            'afmt': '{{FrontSide}}<hr id="answer"><p>{{Country}}</p>'
+        },
+    ],
+    css=STYLE)
 
 logger = logging.getLogger('logger')
 logger.setLevel(logging.DEBUG)
@@ -117,15 +167,17 @@ def write_countries_json(country_data):
 download_flag_svgs(country_data)
 write_countries_json(country_data)
 
+# Generate the Flag Deck
 flag_deck = genanki.Deck(
     1775916622,
     'Country Flags')
 
 for country in country_data:
-    fields = list(country.values())
-    fields.append(f'flags/{country[keys[0]]}.svg')
+    fields = [country['Country']]
+    fields.append(f'<img src="{country[keys[0]]}.svg" height="450px">')
+    fields.append(f'<img src="{country[keys[0]]}.svg" height="225px">')
     logger.info(fields)
-    country_card = genanki.Note(
+    country_card = FlagNote(
         model=FLAG_MODEL,
         fields=fields,
         
@@ -134,6 +186,22 @@ for country in country_data:
 
 flag_pakage = genanki.Package(flag_deck)
 for country in country_data:
-    flag_pakage.media_files.append(f'flags/{country[keys[0]]}.svg')
+    flag_pakage.media_files.append(f'./flags/{country[keys[0]]}.svg')
   
 flag_pakage.write_to_file('flag_cards.apkg')
+
+# generate the ISO 3166 Deck
+iso_deck = genanki.Deck(
+    1963129519,
+    'ISO3166')
+for country in country_data:
+    fields = list(country.values())
+    logger.info(fields)
+    iso_note = ISONote(
+        model=ISO_MODEL,
+        fields=fields,
+    )
+    iso_deck.add_note(iso_note)
+
+iso_package = genanki.Package(iso_deck)
+iso_package.write_to_file('iso3166.apkg')
